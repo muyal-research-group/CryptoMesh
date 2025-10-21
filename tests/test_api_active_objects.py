@@ -5,13 +5,13 @@ from axo.storage.services import MictlanXStorageService
 from mictlanx import AsyncClient
 import os
 
-MICTLANX_URI = os.environ.get("MICTLANX_URI", "mictlanx://mictlanx-router-0@localhost:60666?/api_version=4&protocol=http")
+CRYPTOMESH_MICTLANX_URI = os.environ.get("CRYPTOMESH_MICTLANX_URI", "mictlanx://mictlanx-router-0@localhost:60666?/api_version=4&protocol=http")
 
 @pytest.fixture(scope="session")
 def axo_storage_service() -> MictlanXStorageService:
     MICTLANX = AsyncClient(
-        uri              = MICTLANX_URI,
-        log_output_path  = os.environ.get("MICTLANX_LOG_PATH", "/log/cryptomesh-mictlanx.log"),
+        uri              = CRYPTOMESH_MICTLANX_URI,
+        log_output_path  = os.environ.get("CRYPTOMESH_MICTLANX_LOG_PATH", "/log/cryptomesh-mictlanx.log"),
         capacity_storage = "4GB",
         client_id        = "cryptomesh",
         debug            = True,
@@ -23,7 +23,7 @@ def axo_storage_service() -> MictlanXStorageService:
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
-# @pytest.mark.asyncio
+@pytest.mark.asyncio
 async def before_all_tests(axo_storage_service: MictlanXStorageService ):
     # ss = MictlanXStorageService(
         # bucket_id   = "b1",
@@ -66,7 +66,7 @@ async def test_create_active_object_with_code_generates_schema_and_functions(cli
     # payload["axo_code"] = get_valid_code()  # aseguramos string válido
 
     res = await client.post("/api/v1/active-objects/", json=payload)
-    assert res.status_code == 201, res.text
+    assert res.status_code == 201
     data = res.json()
     print("DATA",data)
     # Verifica que se haya generado schema

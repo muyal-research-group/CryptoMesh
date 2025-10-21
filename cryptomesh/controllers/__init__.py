@@ -10,3 +10,4 @@ from cryptomesh.controllers.function_result_controller import router as function
 from cryptomesh.controllers.activeobjects_controller import router as activeobjects_router
 from cryptomesh.controllers.hierarchy_controller import router as hierarchy_router
 from cryptomesh.controllers.cryptomesh_controller import router as cryptomesh_router    
+from cryptomesh.controllers.choreography_controller import router as choreography_router

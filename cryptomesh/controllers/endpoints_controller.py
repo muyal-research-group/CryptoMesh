@@ -9,7 +9,6 @@ from cryptomesh.services.security_policy_service import SecurityPolicyService
 from cryptomesh.db import get_collection
 from cryptomesh.log.logger import get_logger
 from cryptomesh.errors import handle_crypto_errors
-
 import time as T
 from cryptomesh.dtos.endpoints_dto import EndpointCreateDTO, EndpointResponseDTO, EndpointUpdateDTO
 
@@ -26,7 +25,8 @@ def get_endpoints_service() -> EndpointsService:
         ip_addr     = os.environ.get("CRYPTOMESH_SUMMONER_IP_ADDR","localhost"),
         api_version = int(os.environ.get("CRYPTOMESH_SUMMONER_API_VERSION","3")),
         port        = int(os.environ.get("CRYPTOMESH_SUMMONER_PORT","15000")),
-        protocol    = os.environ.get("CRYPTOMESH_SUMMONER_PROTOCOL","http")
+        protocol    = os.environ.get("CRYPTOMESH_SUMMONER_PROTOCOL","http"),
+        mode        = os.environ.get("CRYPTOMESH_SUMMONER_MODE","docker"),
     )
     return EndpointsService(repository, security_policy_service, summoner_params=x)
 
@@ -145,7 +145,6 @@ async def delete_endpoint(endpoint_id: str, svc: EndpointsService = Depends(get_
 @router.post(
     "/deploy",
     response_model=EndpointResponseDTO,
-    # response_model_by_alias=True,
     status_code=status.HTTP_201_CREATED,
     summary="Desplegar un nuevo endpoint",
     description="Desplegar un nuevo endpoint en la infraestructura."
@@ -155,40 +154,41 @@ async def deploy_endpoint(
     dto:EndpointCreateDTO,
     svc: EndpointsService = Depends(get_endpoints_service)
 ):
-    t1 = T.time()
-    endpoint_id = None
-    try:
-        model   = dto.to_model()
-        created = await svc.create_endpoint(model)
-        endpoint_id = created.endpoint_id
-        res     = await svc.deploy(endpoint_id=endpoint_id)
-        if res.is_err:
-            del_res = await svc.delete_endpoint(endpoint_id=model.endpoint_id)
-            L.error({
-                "event": "API.ENDPOINT.DEPLOY_FAILED",
-                "endpoint_id": model.endpoint_id,
-                "delete": del_res.is_ok,
-                "detail": str(res.unwrap_err())
-            })
-            raise HTTPException(status_code=500, detail=f"Failed to deploy endpoint: {model.endpoint_id} - {res.unwrap_err()}")
-        t1      = T.time()
-        elapsed = round(T.time() - t1, 4)
-        L.info({
-            "event": "API.ENDPOINT.DEPLOYED",
-            "endpoint_id": created.endpoint_id,
-            "time": elapsed
-        })
-        return EndpointResponseDTO.from_model(created)
+    t1            = T.time()
+    model         = dto.to_model()
+    endpoint_id   = model.endpoint_id
+    deploy_result = await svc.deploy(model = model)
     
-    except Exception as e:
+    if deploy_result.is_err:
+        del_res = await svc.delete_endpoint(endpoint_id=endpoint_id)
         L.error({
-            "event": "API.ENDPOINT.DEPLOY_EXCEPTION",
+            "event": "API.ENDPOINT.DEPLOY_FAILED",
             "endpoint_id": endpoint_id,
-            "detail": str(e)
+            "delete": del_res.is_ok,
+            "detail": str(deploy_result.unwrap_err())
         })
-        if endpoint_id:
-            res = await svc.delete_endpoint(endpoint_id=endpoint_id)
-        raise HTTPException(status_code=400, detail=str(e))
+        error_detail = str(deploy_result.unwrap_err())
+        # eliminar prefijo 
+        if error_detail.startswith("["):
+            error_detail = error_detail.split("] ", 1)[-1]
+
+        raise HTTPException(
+            status_code=429, 
+            detail=error_detail
+        )
+
+    deploy_response = deploy_result.unwrap()
+    model.pubsub_port  = deploy_response.pubsub_port
+    model.req_res_port = deploy_response.req_res_port
+    created         = await svc.create_endpoint(model)
+    elapsed         = round(T.time() - t1, 4)
+    L.info({
+        "event": "API.ENDPOINT.DEPLOYED",
+        "endpoint_id": created.endpoint_id,
+        "time": elapsed
+    })
+    return EndpointResponseDTO.from_model(created)
+
     
     # res = await Sum
 
@@ -198,6 +198,7 @@ async def deploy_endpoint(
     summary="Eliminar un endpoint",
     description="Eliminar un endpoint de la infraestructura."
 )
+@handle_crypto_errors
 async def detach_endpoint(
     endpoint_id:str,
     svc: EndpointsService = Depends(get_endpoints_service)

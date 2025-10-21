@@ -1,2 +1,3 @@
 #!/bin/bash
-poetry run python3 cryptomesh/server.py
+readonly PORT=${1:-19000}
+uvicorn cryptomesh.server:app --reload --host 0.0.0.0 --port ${PORT}

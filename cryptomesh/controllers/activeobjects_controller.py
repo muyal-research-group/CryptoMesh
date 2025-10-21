@@ -17,12 +17,12 @@ from cryptomesh.dtos import ActiveObjectCreateDTO, ActiveObjectResponseDTO, Acti
 from cryptomesh.utils import Utils
 # 
 
-MICTLANX_URI =os.environ.get("MICTLANX_URI", "mictlanx://mictlanx-router-0@localhost:60666?/api_version=4&protocol=http")
+CRYPTOMESH_MICTLANX_URI =os.environ.get("CRYPTOMESH_MICTLANX_URI", "mictlanx://mictlanx-router-0@localhost:60666?/api_version=4&protocol=http")
 
 def mictlanx_storage_service() -> MictlanXStorageService:
     MICTLANX = AsyncClient(
-        uri              = MICTLANX_URI,
-        log_output_path  = os.environ.get("MICTLANX_LOG_PATH", "/log/cryptomesh-mictlanx.log"),
+        uri              = CRYPTOMESH_MICTLANX_URI,
+        log_output_path  = os.environ.get("CRYPTOMESH_MICTLANX_LOG_PATH", "/log/cryptomesh-mictlanx.log"),
         capacity_storage = "4GB",
         client_id        = "cryptomesh",
         debug            = True,

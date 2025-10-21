@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic, Type, Union, Optional, List
+from typing import TypeVar, Generic, Type, Union, Optional, List,Dict,Any
 from pydantic import BaseModel
 from motor.motor_asyncio import AsyncIOMotorCollection
 from pymongo import ReturnDocument
@@ -14,7 +14,15 @@ class BaseRepository(Generic[T]):
         self.collection = collection
         self.model = model
 
-    async def find_one(self, query: dict) -> Optional[T]:
+    async def count(self, query: Dict[str,Any]={}) -> int:
+        try:
+            count = await self.collection.count_documents(query)
+            return count
+        except PyMongoError as e:
+            L.error({"error": str(e)})
+            raise HTTPException(status_code=500, detail="Database error in count")
+
+    async def find_one(self, query: Dict[str, Any]) -> Optional[T]:
         try:
             doc = await self.collection.find_one(query)
             return self.model(**doc) if doc else None
@@ -43,7 +51,7 @@ class BaseRepository(Generic[T]):
             L.error({"error": str(e)})
             raise HTTPException(status_code=500, detail="Database error in find_all")
 
-    async def update(self, query: dict, updates: Union[dict, T]) -> Optional[T]:
+    async def update(self, query: Dict[str, Any], updates: Union[dict, T]) -> Optional[T]:
         try:
             if isinstance(updates, BaseModel):
                 updates = updates.model_dump(by_alias=True, exclude_unset=True)
@@ -65,7 +73,7 @@ class BaseRepository(Generic[T]):
             L.error({"error": str(e)})
             raise HTTPException(status_code=500, detail="Database error in update")
 
-    async def delete(self, query: dict) -> bool:
+    async def delete(self, query: Dict[str, Any]) -> bool:
         try:
             result = await self.collection.delete_one(query)
             return result.deleted_count > 0

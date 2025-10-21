@@ -1,26 +1,40 @@
-set -euo pipefail
+#!/usr/bin/env bash
+set -e  # Detener ejecución si ocurre algún error
 
-# Nombre base de la imagen
-IMAGE_NAME="leogarcia10/cryptomesh"
+# Variables (mismos parámetros que en ShieldX)
+IMAGE_NAME=${1:-"cryptomesh:api"}
+IMAGE_TAG=${2:-"latest"}
+DOCKERFILE=${3:-"./Dockerfile"}
+BUILD_CONTEXT=${4:-"."}
+PUSH_FLAG=${2:-false}
+# Banner de inicio para CryptoMesh
+echo -e "\e[38;5;114m"  # Color cian
+cat << "EOF"
+ ██████╗██████╗ ██╗   ██╗██████╗ ████████╗ ██████╗ ███╗   ███╗███████╗███████╗██╗  ██╗
+██╔════╝██╔══██╗╚██╗ ██╔╝██╔══██╗╚══██╔══╝██╔═══██╗████╗ ████║██╔════╝██╔════╝██║  ██║
+██║     ██████╔╝ ╚████╔╝ ██████╔╝   ██║   ██║   ██║██╔████╔██║█████╗  ███████╗███████║
+██║     ██╔══██╗  ╚██╔╝  ██╔═══╝    ██║   ██║   ██║██║╚██╔╝██║██╔══╝  ╚════██║██╔══██║
+╚██████╗██║  ██║   ██║   ██║        ██║   ╚██████╔╝██║ ╚═╝ ██║███████╗███████║██║  ██║
+ ╚═════╝╚═╝  ╚═╝   ╚═╝   ╚═╝        ╚═╝    ╚═════╝ ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝
+EOF
+echo -e "\e[0m"  # Restaurar color por defecto
+echo
 
-# Verificar que se pase un tag
-if [ $# -lt 1 ]; then
-  echo "Uso: $0 <tag_github>"
-  echo "Ejemplo: $0 v0.0.1-alpha"
-  exit 1
+echo "=============================================="
+echo " 🛠️  Building CryptoMesh Docker image"
+echo "----------------------------------------------"
+echo " Image      : ${IMAGE_NAME}:${IMAGE_TAG}"
+echo " Dockerfile : ${DOCKERFILE}"
+echo " Context    : ${BUILD_CONTEXT}"
+echo "=============================================="
+
+# Construcción de la imagen local (sin normalizar tag, igual que ShieldX)
+docker build -f "${DOCKERFILE}" -t "${IMAGE_NAME}:${IMAGE_TAG}" "${BUILD_CONTEXT}"
+
+echo "✅ Image built successfully: ${IMAGE_NAME}:${IMAGE_TAG}"
+
+if [ "$PUSH_FLAG" == true ]; then
+    echo "📤 Pushing the image after build"
+    docker push $IMAGE_NAME
+    exit 0;
 fi
-
-GITHUB_TAG="$1"
-
-# Transformar tag GitHub a convención de Docker
-VERSION="${GITHUB_TAG#v}"
-# Reemplazar
-VERSION="${VERSION/-alpha/a0}"
-VERSION="${VERSION/-beta/b0}"
-VERSION="${VERSION/-rc/rc0}"
-
-# Construcción de la imagen
-echo "🚀 Construyendo imagen Docker: $IMAGE_NAME:api-$VERSION"
-docker build -t "$IMAGE_NAME:api-$VERSION" .
-
-echo "✅ Imagen construida correctamente: $IMAGE_NAME:api-$VERSION"

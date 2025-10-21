@@ -1,15 +1,37 @@
 services:
-  crypto-mesh-db:
+  cryptomesh-db:
     image: mongo:latest
-    container_name: crypto-mesh-db
+    container_name: cryptomesh-db
+    env_file:
+      - .env.dev
     ports:
-      - "${MONGO_PORT:-27017}:27017"
+      - "${CRYPTOMESH_MONGO_PORT:-27018}:27017"
     volumes:
       - mongo-data:/data/db
     restart: unless-stopped
     networks:
       - cryptomesh-net
 
+
+
+  crypto-mesh-api:
+    image: ${CRYPTOMESH_API_IMAGE:-cryptomesh:api}
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto-mesh-api
+    depends_on:
+      - cryptomesh-db
+    command: ["uvicorn", "cryptomesh.server:app", "--host", "0.0.0.0", "--port", "19000"]
+    ports:
+      - "${CRYPTOMESH_PORT:-19000}:19000"
+    env_file:
+      - .env.dev
+    # volumes:
+      # - cryptomesh-vol:/app
+    restart: unless-stopped
+    networks:
+      - cryptomesh-net
   # This service is commented out for now. Uncomment if RabbitMQ is needed. 
   # crypto-mesh-broker:
   #   image: rabbitmq:4.0-management
@@ -18,34 +40,6 @@ services:
   #     - "${RABBITMQ_PORT:-5672}:5672"
   #     - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
   #   restart: unless-stopped
-
-  crypto-mesh-api:
-    image: cryptomesh:api
-    # build: .
-    container_name: crypto-mesh-api
-    depends_on:
-      - crypto-mesh-db
-      # - crypto-mesh-broker
-    command: ["uvicorn", "cryptomesh.server:app", "--host", "0.0.0.0", "--port", "19000"]
-    ports:
-      - "${CRYPTO_MESH_PORT:-19000}:19000"
-    environment:
-      CRYPTO_MESH_HOST: ${CRYPTOMESH_HOST:-0.0.0.0}
-      CRYPTO_MESH_PORT: ${CRYPTO_MESH_PORT:-19000}
-      CRYPTOMESH_SUMMONER_IP_ADDR: mictlanx-summoner-0
-      CRYPTOMESH_MAX_CPU: ${CRYPTOMESH_MAX_CPU:-4} 
-      CRYPTOMESH_MAX_RAM: ${CRYPTOMESH_MAX_RAM:-8}  
-      MONGO_DATABASE_NAME: ${MONGODB_DATABASE_NAME:-cryptomesh}
-      MONGODB_URI: ${MONGODB_URI:-mongodb://crypto-mesh-db:27017/cryptomesh}
-      MICTLANX_LOG_PATH: "/app/logs"
-      MICTLANX_URI: "mictlanx://mictlanx-router-0@mictlanx-router-0:60666?/api_version=4&protocol=http"
-      AXO_LOG_PATH: "/app/logs"
-    # volumes:
-      # - cryptomesh-vol:/app
-    restart: unless-stopped
-    networks:
-      - cryptomesh-net
-
 volumes:
   mongo-data:
   # cryptomesh-vol:

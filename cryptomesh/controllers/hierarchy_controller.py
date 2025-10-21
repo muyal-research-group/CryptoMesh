@@ -95,6 +95,10 @@ async def get_hierarchy(
                         active_object_id=ao.active_object_id,
                         object_name=ao.axo_class_name,
                         alias=ao.axo_alias,
+                        axo_bucket_id = ao.axo_bucket_id,
+                        axo_source_bucket_id = ao.axo_source_bucket_id,
+                        axo_sink_bucket_id = ao.axo_sink_bucket_id,
+                        axo_endpoint_id = ao.axo_endpoint_id,
                         version=ao.axo_version,
                         functions=functions_dto,
                     )

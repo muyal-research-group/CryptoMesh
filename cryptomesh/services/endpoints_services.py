@@ -1,11 +1,11 @@
 import time as T
-from typing import Optional,List,Dict,Any
+from typing import Optional,List,Dict,Any,Tuple
 from option import Result,Ok,Err,Some
 import random
 # 
 import humanfriendly as HF
 from cryptomesh.models import EndpointModel,SummonerParams
-from cryptomesh.dtos.endpoints_dto import DeleteEndpointDTO
+from cryptomesh.dtos.endpoints_dto import DeleteEndpointDTO,DeployedEndpointDTO
 from cryptomesh.repositories.endpoints_repository import EndpointsRepository
 from cryptomesh.services.security_policy_service import SecurityPolicyService
 from cryptomesh.log.logger import get_logger
@@ -15,6 +15,8 @@ from cryptomesh.errors import (
     ValidationError,
 )
 from mictlanx.services.summoner.summoner import Summoner,SummonContainerPayload,SummonServiceResponse,ExposedPort,MountX,MountType
+from cryptomesh import config
+
 
 L = get_logger(__name__)
 
@@ -56,12 +58,32 @@ class EndpointsService:
             return Ok(res1.is_ok and res2.is_ok)
         except Exception as e:
             return CryptoMeshError(message=str(e),code=500)
-    async def deploy(self,endpoint_id:str,dependencies:List[str]=[],network_id:str = "axo-net",selected_node:str= None):
-        model = await self.get_endpoint(endpoint_id=endpoint_id)
-        x_port = random.randrange(start=30000, stop=60000)
+
+    async def deploy(self,model:EndpointModel,dependencies:List[str]=[],network_id:str = "axo-net",selected_node:str= None)->Result[DeployedEndpointDTO,CryptoMeshError]:
+        endpoint_id  = model.endpoint_id
+
+        max_limit_endpoints = config.CRYPTOMESH_MAX_DEPLOYED_ENDPOINTS
+        
+        # Verificar límite antes de desplegar
+        count = await self.repository.count()
+        if isinstance(max_limit_endpoints, int) and count >= max_limit_endpoints:
+            msg = f"You have reached the max limit of deployed endpoints ({max_limit_endpoints})."
+            L.warning({
+                "event": "ENDPOINT.DEPLOY.LIMIT_REACHED",
+                "current_count": count,
+                "limit": max_limit_endpoints,
+                "detail": msg
+            })
+            raise CryptoMeshError(message=msg, code=429)
+
+        # Incremental port assignment based on existing endpoints
+        req_res_port = config.CRYPTOMESH_ENDPOINT_REQ_RES_BASE_PORT + count
+        pubsub_port  = config.CRYPTOMESH_ENDPOINT_PUBSUB_BASE_PORT + count
+        # 
+      
         envs = {
             # --- AXO core ---
-            "AXO_ENDPOINT_ID": model.envs.get("AXO_ENDPOINT_ID", "axo-endpoint-0"),
+            "AXO_ENDPOINT_ID": endpoint_id,
             "AXO_GOSSIP_BIND_HOST": model.envs.get("AXO_GOSSIP_BIND_HOST", "0.0.0.0"),
             "AXO_GOSSIP_PORT": model.envs.get("AXO_GOSSIP_PORT", "7777"),
             "AXO_HEARTBEAT_INTERVAL": model.envs.get("AXO_HEARTBEAT_INTERVAL", "5.0"),
@@ -81,9 +103,9 @@ class EndpointsService:
             "AXO_ENDPOINT_IMAGE": model.envs.get("AXO_ENDPOINT_IMAGE", "nachocode/axo:endpoint-0.0.3a0"),
             "AXO_ENDPOINT_DEPENDENCIES": model.envs.get("AXO_ENDPOINT_DEPENDENCIES", ""),  # semicolon-separated
             "AXO_PROTOCOL": model.envs.get("AXO_PROTOCOL", "tcp"),
-            "AXO_PUB_SUB_PORT": model.envs.get("AXO_PUB_SUB_PORT", "16666"),
-            "AXO_REQ_RES_PORT": model.envs.get("AXO_REQ_RES_PORT", "16667"),
-            "AXO_HOSTNAME": model.envs.get("AXO_HOSTNAME", "127.0.0.1"),
+            "AXO_PUB_SUB_PORT": str(pubsub_port),
+            "AXO_REQ_RES_PORT": str(req_res_port),
+            "AXO_HOSTNAME": model.envs.get("AXO_HOSTNAME", "0.0.0.0"),
             "AXO_SUBSCRIBER_HOSTNAME": model.envs.get("AXO_SUBSCRIBER_HOSTNAME", "*"),
             "AXO_ENDPOINTS": model.envs.get("AXO_ENDPOINTS", ""),  # space-separated
             "AXO_HEATER_MAX_IDLE_TIME": model.envs.get("AXO_HEATER_MAX_IDLE_TIME", "1h"),
@@ -114,19 +136,19 @@ class EndpointsService:
             "NODE_PORT": model.envs.get("NODE_PORT", "16667"),                 # mirrors AXO_REQ_RES_PORT default
         }
 
-        print("PORT",x_port)
+        # print("PORT",x_port)
         payload = SummonContainerPayload(
-            container_id  = model.endpoint_id,
+            container_id  = endpoint_id,
             cpu_count     = model.resources.cpu,
             envs          = envs,
             exposed_ports = [
-                ExposedPort(host_port=x_port,container_port=x_port,ip_addr=None, protocolo=None),
-                ExposedPort(host_port=x_port+1,container_port=x_port+1,ip_addr=None, protocolo=None),
+                ExposedPort(host_port=req_res_port,container_port=req_res_port,ip_addr=None, protocolo=None),
+                ExposedPort(host_port=pubsub_port,container_port=pubsub_port,ip_addr=None, protocolo=None),
             ],
             force         = True,
-            hostname      = model.endpoint_id,
+            hostname      = endpoint_id,
             image         = model.image,
-            ip_addr       = model.endpoint_id,
+            ip_addr       = endpoint_id,
             labels        = {"crypytomesh":"1", "type":"axo-endpoint"},
             memory        = HF.parse_size(model.resources.ram),
             mounts        = [
@@ -145,7 +167,21 @@ class EndpointsService:
             selected_node = selected_node,
             shm_size      = None,
         )
-        return self.summoner.summon(payload=payload)
+        summoned_result = self.summoner.summon(payload=payload)
+        if summoned_result.is_err:
+            err = summoned_result.unwrap_err()
+            L.error({
+                "event": "ENDPOINT.DEPLOY.FAIL",
+                "endpoint_id": endpoint_id,
+                "error": str(err)
+            })
+            return Err(CryptoMeshError(message=f"Failed to deploy endpoint '{endpoint_id}': {str(err)}",code=500))
+        summon_response  = summoned_result.unwrap()
+        return Ok(DeployedEndpointDTO(
+            container_id = summon_response.container_id,
+            req_res_port = req_res_port,
+            pubsub_port  = pubsub_port
+        ))
 
     async def create_endpoint(self, data: EndpointModel):
         t1 = T.time()

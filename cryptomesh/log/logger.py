@@ -2,10 +2,10 @@ import logging
 from cryptomesh.log import Log
 from cryptomesh import config
 
-CRYPTO_MESH_DEBUG = config.CRYPTO_MESH_DEBUG
+CRYPTOMESH_DEBUG  = config.CRYPTOMESH_DEBUG 
 
 def console_handler_filter(record: logging.LogRecord):
-    if CRYPTO_MESH_DEBUG:
+    if CRYPTOMESH_DEBUG :
         return True
     return record.levelno in (logging.INFO, logging.WARNING, logging.ERROR)
 

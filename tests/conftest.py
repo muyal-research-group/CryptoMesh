@@ -16,8 +16,12 @@ import pytest_asyncio
 from cryptomesh.db import connect_to_mongo, close_mongo_connection, get_client,get_database
 from httpx import AsyncClient, ASGITransport
 from cryptomesh.server import app
-
-TEST_DB = os.environ.get("MONGO_DATABASE_NAME","cryptomesh_test")
+from dotenv import load_dotenv
+import cryptomesh.config
+# CRYPTOMESH_ENV_FILE = os.environ.get("CRYPTOMESH_ENV_FILE",".env")
+# if os.path.exists(CRYPTOMESH_ENV_FILE):
+#     load_dotenv(CRYPTOMESH_ENV_FILE)
+TEST_DB = os.environ.get("CRYPTOMESH_MONGO_DATABASE_NAME","cryptomesh_test")
 # ───────────────────────────────
 # Session‑scoped Event Loop
 # ───────────────────────────────
@@ -59,6 +63,7 @@ async def connect_and_get_client(event_loop):
     await connect_to_mongo()
     yield get_client()
     await close_mongo_connection()
+    print("MongoDB connection closed.")
 
 
 # ───────────────────────────────

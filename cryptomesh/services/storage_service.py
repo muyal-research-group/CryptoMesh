@@ -41,9 +41,6 @@ class StorageService:
         model.axo_class_name = axo_class_name
         model.axo_bucket_id  = axo_bucket_id
         model.axo_key        = axo_key
-
-
-        
         
         # For now keep the dict but when we have more time we create a DTO
         # to handle this metadata
@@ -75,6 +72,7 @@ class StorageService:
             key       = axo_key,
             code      = code,
             attrs     = attrs,
+            tags      = {k: str(v) for k, v in attrs.get("_acx_metadata").model_dump(by_alias=True).items()}
         )
         res = await self.axo_storage.put_blobs(
             bucket_id  = axo_bucket_id,

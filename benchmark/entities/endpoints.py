@@ -11,7 +11,7 @@ def build_endpoint(security_policy_id= str):
     return EndpointCreateDTO(
         name="ep_bench",
         image="axo:endpoint",
-        resources=ResourcesDTO(cpu=1, ram="512MB"),
+        resources=ResourcesDTO(cpu=1, ram="1GB"),
         security_policy=SecurityPolicyDTO(
             sp_id=security_policy_id,
             roles=["admin"],

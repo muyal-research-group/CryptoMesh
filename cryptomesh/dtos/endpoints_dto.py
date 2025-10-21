@@ -50,6 +50,11 @@ class EndpointCreateDTO(BaseModel):
         )
     
     
+class DeployedEndpointDTO(BaseModel):
+    container_id: str
+    req_res_port: int
+    pubsub_port: int
+
 
 # -------------------------------
 # DTO para respuesta al cliente
@@ -64,6 +69,8 @@ class EndpointResponseDTO(BaseModel):
     image: str
     resources: ResourcesDTO
     security_policy: str
+    pubsub_port: Optional[int] = None
+    req_res_port: Optional[int] = None
 
     @staticmethod
     def from_model(model: EndpointModel) -> "EndpointResponseDTO":
@@ -71,11 +78,13 @@ class EndpointResponseDTO(BaseModel):
         Convierte un EndpointModel en un DTO de respuesta segura.
         """
         return EndpointResponseDTO(
-            endpoint_id=model.endpoint_id,
-            name=model.name,
-            image=model.image,
-            resources=ResourcesDTO.from_model(model.resources),
-            security_policy=model.security_policy
+            endpoint_id     = model.endpoint_id,
+            name            = model.name,
+            image           = model.image,
+            resources       = ResourcesDTO.from_model(model.resources),
+            security_policy = model.security_policy,
+            pubsub_port     = model.pubsub_port,
+            req_res_port    = model.req_res_port
         )
 
 

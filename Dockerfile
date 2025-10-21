@@ -26,14 +26,16 @@ RUN pip install --no-cache-dir poetry
 COPY pyproject.toml poetry.lock* ./
 
 # Instalar dependencias del proyecto
-RUN poetry install --without dev --no-root
+RUN poetry lock && poetry install --without dev --no-root
 
 # Copiar resto del servicio
 COPY . .
 # RUN poetry add ./axo-0.0.4a2.tar.gz
 # Crear carpeta de logs con permisos correctos
 RUN mkdir -p /app/logs && chown -R appuser:appuser /app/logs && mkdir /log && chmod -R 755 /log
-
+# Crear carpetas de logs con permisos correctos
+# (reemplaza tu bloque actual de /app/logs y /log por este)
+RUN mkdir -p /log /app/logs  && chown -R appuser:appuser /log /app/logs && chmod -R 775 /log /app/logs
 # Crear carpeta de logs con permisos correctos para mictlanx
 RUN mkdir -p /mictlanx && chown -R appuser:appuser /mictlanx
 

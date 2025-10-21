@@ -9,7 +9,7 @@ from benchmark.config import ITERATIONS, MAX_CONCURRENT, BATCH_SIZE, PAUSE_BETWE
 def build_microservice(service_id: str) -> MicroserviceCreateDTO:
     return MicroserviceCreateDTO(
         service_id=service_id,
-        resources=ResourcesDTO(cpu=1, ram="512MB"),
+        resources=ResourcesDTO(cpu=1, ram="1GB"),
         functions=[],
         policy_id="policy_benchmark"
     )

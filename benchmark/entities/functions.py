@@ -15,7 +15,7 @@ def build_function(microservice_id: str, endpoint_id: str) -> FunctionCreateDTO:
         microservice_id=microservice_id,
         endpoint_id=endpoint_id,
         image="my_function_image:latest",
-        resources=ResourcesDTO(cpu=1, ram="512MB"),
+        resources=ResourcesDTO(cpu=1, ram="1GB"),
         storage=StorageDTO(capacity="1GB", source_path="/data/source", sink_path="/data/sink"),
         policy_id="policy_benchmark"
     )

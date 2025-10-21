@@ -23,6 +23,7 @@ dependencies = [
     "jupyter (>=1.1.1,<2.0.0)",
     "axo (==0.0.4a2)",
     "mictlanx (==0.1.0a2)",
+    "shieldx-client (==0.0.1a8)",
 ]
 
 
